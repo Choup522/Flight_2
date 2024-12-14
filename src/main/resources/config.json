@@ -1,0 +1,18 @@
+{
+  "spark": {
+    "app_name": "Flight",
+    "master": "local[*]"
+  },
+  "execution": {
+    "sizeOfSample": 0.01
+  },
+  "paths": {
+    "datapath_flight": "data/flights/",
+    "datapath_weather": "data/weather/",
+    "datapath_wban": "data/airport/wban_airport_timezone.csv",
+    "output_dataframe": "../Flight_2/outputs/csv/",
+    "output_schema": "../Flight_2/outputs/schema/",
+    "output_csv_flight_sample": "../Flight_2/outputs/csv/sample_flights.csv",
+    "output_csv_weather_sample": "../Flight_2/outputs/csv/sample_weather.csv"
+  }
+}
