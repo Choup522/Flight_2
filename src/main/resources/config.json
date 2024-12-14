@@ -4,7 +4,8 @@
     "master": "local[*]"
   },
   "execution": {
-    "sizeOfSample": 0.01
+    "sizeOfSample": 0.01,
+    "parameter": "lines"
   },
   "paths": {
     "datapath_flight": "data/flights/",

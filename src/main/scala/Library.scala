@@ -11,6 +11,13 @@ object Library {
     df.columns.foldLeft(df)((tempDF, colName) => tempDF.withColumnRenamed(colName, s"$prefix$colName"))
   }
 
+  // Function to rename all columns with a suffix
+  def addSuffixToColumns(df: DataFrame, suffix: String): DataFrame = {
+    df.columns.foldLeft(df) { (newDF, colName) =>
+      newDF.withColumnRenamed(colName, colName + suffix)
+    }
+  }
+
   // Function to convert columns to Double
   def convertColumnsToDouble(df: DataFrame, columns: List[String]): DataFrame = {
     columns.foldLeft(df) { (tempDf, colName) => tempDf.withColumn(colName, col(colName).cast("Double")) }

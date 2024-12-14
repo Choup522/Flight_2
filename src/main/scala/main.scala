@@ -30,6 +30,7 @@ object main {
     // Get the environment
     val paths = config.getConfig("paths")
     val sizeOfSample = config.getDouble("execution.sizeOfSample")
+    val parameter = config.getString("execution.parameter")
 
     // Creation of spark session
     logger.info("Main: Creating Spark session")
@@ -91,8 +92,7 @@ object main {
     val OT_Table_prepared = DF_Map(OT_Table, "OT")
 
     logger.info("Main: Joining the data - second step")
-    val finalDF_Cols = DF_Reduce_Cols(FT_Table_prepared, OT_Table_prepared, partitions)
-    exportSchema(finalDF_Cols, output + "FinalDF_schema.json")
+    val joinDF = chooseJoinOpération(parameter, FT_Table_prepared, OT_Table_prepared, partitions, output, spark)
 
     val endJoinOperations = System.nanoTime()
     val durationJoinOperations = (endJoinOperations - startJoinOperations) / 1e9d
@@ -102,7 +102,7 @@ object main {
     val startFiltering = System.nanoTime()
     val onTimeThreshold: Double = 15
     val missingValueThreshold: Double = 0.8
-    val finalDF = generateFlightDatasets2(finalDF_Cols, onTimeThreshold, missingValueThreshold)
+    val finalDF = generateFlightDatasets2(joinDF, onTimeThreshold, missingValueThreshold)
 
     exportSchema(finalDF, output + "finalDF_schema.json")
     finalDF.persist()

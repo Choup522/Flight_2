@@ -1,0 +1,7 @@
+Task,Duration (seconds)
+Load data,11.96746525
+Create samples,0.267205667
+Restatements,1.689399
+JoinOperations,1.810680125
+Filtering,118.094020959
+RandomForrest,701.266569583

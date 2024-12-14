@@ -1,7 +1,8 @@
 import LoggerFactory.logger
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.TimestampType
+import Library._
 
 case object JoinPhases {
 
@@ -121,6 +122,59 @@ case object JoinPhases {
     val joined_DF_repartitioned = df_result.repartition(numPartitions)
 
     joined_DF_repartitioned
+  }
+
+  // Function to join dataframes based on lines
+  def DF_Reduce_Lines(FT_flights: DataFrame, OT_weather: DataFrame, numPartitions: Int = 100, spark: SparkSession) : DataFrame = {
+
+    logger.info("DF_Reduce Line: Starting DataFrame reduction")
+    import spark.implicits._
+
+    // Step 1: Create a dataset of hours_lag from 0 to 11
+    logger.info("DF_Reduce Line: Created a dataset of hours_lag from 0 to 11")
+    val hours_lag = spark.createDataset(0 to 11).toDF("hours_lag")
+
+    val df_flights_with_lag = FT_flights
+      .withColumn("FT_ORIGIN_UNIX_TS", unix_timestamp($"FT_TIMESTAMP"))
+      .withColumn("FT_DEST_UNIX_TS", unix_timestamp($"FT_DEST_DATE_TIME"))
+      .crossJoin(hours_lag)
+      .withColumn("FT_ORIGIN_DATE_TIME_LAG", expr("from_unixtime(FT_ORIGIN_UNIX_TS - hours_lag * 3600)"))
+      .withColumn("FT_DEST_DATE_TIME_LAG", expr("from_unixtime(FT_DEST_UNIX_TS - hours_lag * 3600)"))
+      .repartition($"FT_ORIGIN_AIRPORT_ID", $"FT_DEST_AIRPORT_ID")
+
+    logger.info("DF_Reduce_Line: Created lagged timestamps for each flight")
+    val df_weather_origin = addSuffixToColumns(OT_weather, "_ORIG")
+    val df_weather_dest = addSuffixToColumns(OT_weather, "_DEST")
+
+    logger.info("DF_Reduce_Line: Repartitioned the dataframes")
+    val df_weather_origin_partitioned = df_weather_origin.repartition($"OT_ORIGIN_AIRPORT_ID_ORIG")
+    val df_weather_dest_partitioned = df_weather_dest.repartition($"OT_ORIGIN_AIRPORT_ID_DEST")
+
+    logger.info("DF_Reduce_Line: Joined the dataframes")
+    val df_result = df_flights_with_lag
+      .join(broadcast(df_weather_origin_partitioned), col("FT_ORIGIN_DATE_TIME_LAG") === col("OT_WEATHER_TIMESTAMP_ORIG") && col("FT_ORIGIN_AIRPORT_ID") === col("OT_ORIGIN_AIRPORT_ID_ORIG"), "left")
+      .join(broadcast(df_weather_dest_partitioned), col("FT_DEST_DATE_TIME_LAG") === col("OT_WEATHER_TIMESTAMP_DEST") && col("FT_DEST_AIRPORT_ID") === col("OT_ORIGIN_AIRPORT_ID_DEST"), "left")
+
+    df_result
+  }
+
+  def chooseJoinOpération(parameter: String, FT_table: DataFrame, OT_table: DataFrame, numPartitions: Int = 100, output: String, spark: SparkSession): DataFrame = {
+
+    val finalDF = parameter match {
+      case "cols" =>
+        val finalDF_Cols = DF_Reduce_Cols(FT_table, OT_table, numPartitions)
+        exportSchema(finalDF_Cols, output + "FinalDF_schema.json")
+        finalDF_Cols
+      case "lines" =>
+        val finalDF_Lines = DF_Reduce_Lines(FT_table, OT_table, numPartitions, spark)
+        exportSchema(finalDF_Lines, output + "FinalDF_schema.json")
+        finalDF_Lines
+      case _ =>
+        throw new IllegalArgumentException(s"Invalid parameter value: $parameter. Accepted values are 'cols' or 'lines'.")
+    }
+
+    finalDF
+
   }
 
 }
